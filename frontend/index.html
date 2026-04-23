@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clínica Veterinaria · BDA Corte 3</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f0f4f8; color: #1a202c; }
+    .app { max-width: 100%; margin: 0; padding: 24px; }
+    header { background: #2d3748; color: #fff; padding: 16px 24px;
+             display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
+             border-radius: 8px; }
+    header h1 { font-size: 1.2rem; }
+    .role-badge { background: #4299e1; padding: 4px 10px; border-radius: 20px;
+                  font-size: 0.75rem; font-weight: 600; margin-left: auto; }
+    nav { display: flex; gap: 8px; margin-bottom: 20px; }
+    nav button { padding: 8px 16px; border: 2px solid #cbd5e0; background: #fff;
+                 border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+    nav button.active { border-color: #4299e1; background: #ebf8ff; color: #2b6cb0; font-weight: 600; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .card { background: #fff; border-radius: 8px; padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 16px; }
+    .card h2 { font-size: 1rem; color: #4a5568; margin-bottom: 16px; }
+    label { display: block; font-size: 0.85rem; font-weight: 600;
+            color: #4a5568; margin-bottom: 4px; }
+    select, input { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e0;
+                    border-radius: 6px; font-size: 0.9rem; margin-bottom: 12px; }
+    button.btn { padding: 9px 20px; background: #4299e1; color: #fff; border: none;
+                 border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+    button.btn:hover { background: #3182ce; }
+    button.btn.secondary { background: #718096; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { background: #edf2f7; padding: 8px 12px; text-align: left;
+         font-weight: 600; color: #4a5568; }
+    td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
+    tr:hover td { background: #f7fafc; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 12px;
+            font-size: 0.75rem; font-weight: 600; }
+    .pill-ok  { background: #c6f6d5; color: #276749; }
+    .pill-warn{ background: #fefcbf; color: #744210; }
+    .pill-err { background: #fed7d7; color: #742a2a; }
+    .msg { padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; font-size: 0.9rem; }
+    .msg-ok   { background: #c6f6d5; color: #276749; }
+    .msg-err  { background: #fed7d7; color: #742a2a; }
+    .msg-info { background: #bee3f8; color: #2c5282; }
+    .cache-badge { font-size: 0.75rem; font-weight: 600; padding: 3px 8px;
+                   border-radius: 4px; margin-left: 8px; }
+    .cache-hit  { background: #c6f6d5; color: #276749; }
+    .cache-miss { background: #fefcbf; color: #744210; }
+    .vet-map { font-size: 0.8rem; color: #718096; background: #f7fafc;
+               border: 1px solid #e2e8f0; border-radius: 6px;
+               padding: 10px; margin-bottom: 12px; }
+    .attack-note { font-size: 0.8rem; color: #718096; margin-top: 4px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <span style="font-size:1.8rem">🐾</span>
+    <div>
+      <h1>Clínica Veterinaria</h1>
+    </div>
+    <div class="role-badge" id="roleBadge">Sin sesión</div>
+  </header>
+
+  <nav>
+    <button class="active" onclick="showPanel('login')">🔑 Login / Rol</button>
+    <button onclick="showPanel('busqueda')">🔍 Buscar Mascotas</button>
+    <button onclick="showPanel('vacunacion')">💉 Vacunación Pendiente</button>
+  </nav>
+
+  <!-- PANTALLA 1: Login con selección de rol -->
+  <div class="panel active" id="panel-login">
+    <div class="card">
+      <h2>Seleccionar Rol</h2>
+      <p style="font-size:0.85rem;color:#718096;margin-bottom:16px">
+        Elige un rol para obtener un token JWT. Cada rol tiene permisos distintos + RLS.
+      </p>
+      <div class="vet-map">
+        <strong>Asignaciones RLS (vet_atiende_mascota):</strong><br>
+        Dr. López (id=1) → Firulais, Toby, Max<br>
+        Dra. García (id=2) → Misifú, Luna, Dante<br>
+        Dr. Méndez (id=3) → Rocky, Pelusa, Coco, Mango
+      </div>
+      <label>Rol</label>
+      <select id="rolSelect">
+        <option value="clinica_admin|null">👑 Administrador (ve todo)</option>
+        <option value="clinica_vet|1">🩺 Dr. López (vet_id=1)</option>
+        <option value="clinica_vet|2">🩺 Dra. García (vet_id=2)</option>
+        <option value="clinica_vet|3">🩺 Dr. Méndez (vet_id=3)</option>
+        <option value="clinica_recepcionista|null">📋 Recepcionista</option>
+      </select>
+      <button class="btn" onclick="login()">Iniciar Sesión</button>
+      <div id="loginMsg" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <!-- PANTALLA 2: Búsqueda de mascotas -->
+  <div class="panel" id="panel-busqueda">
+    <div class="card">
+      <h2>🔍 Buscar Mascotas</h2>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <div style="flex:1">
+          <label>Nombre o especie (campo libre — prueba SQL injection aquí)</label>
+          <input type="text" id="searchInput"
+                 placeholder="Ej: firulais  |  ' OR '1'='1  |  '; DROP TABLE mascotas; --"
+                 onkeydown="if(event.key==='Enter') buscar()">
+        </div>
+        <button class="btn" onclick="buscar()" style="margin-bottom:12px">Buscar</button>
+        <button class="btn secondary" onclick="cargarTodas()" style="margin-bottom:12px">Ver todas</button>
+      </div>
+      <p class="attack-note">
+        💡 Intenta: <code>' OR '1'='1</code> &nbsp;|&nbsp;
+        <code>'; DROP TABLE mascotas; --</code> &nbsp;|&nbsp;
+        <code>' UNION SELECT 1,cedula,cedula,NOW(),'x' FROM veterinarios--</code>
+      </p>
+      <div id="searchResults" style="margin-top:16px"></div>
+    </div>
+  </div>
+
+  <!-- PANTALLA 3: Vacunación pendiente -->
+  <div class="panel" id="panel-vacunacion">
+    <div class="card">
+      <h2>
+        💉 Mascotas con Vacunación Pendiente
+        <span id="cacheBadge" class="cache-badge" style="display:none"></span>
+      </h2>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button class="btn" onclick="cargarVacunacion()">🔄 Consultar (ver caché)</button>
+        <button class="btn secondary" onclick="mostrarFormVacuna()">+ Aplicar Vacuna</button>
+      </div>
+      <div id="vacunacionMsg"></div>
+      <div id="vacunacionResults"></div>
+    </div>
+
+    <div class="card" id="formVacunaCard" style="display:none">
+      <h2>Aplicar Vacuna (invalida caché)</h2>
+      <label>ID Mascota</label>
+      <input type="number" id="vacMascota" placeholder="Ej: 1">
+      <label>ID Vacuna (1=Antirrábica, 2=Quíntuple felina...)</label>
+      <input type="number" id="vacVacuna" placeholder="Ej: 1">
+      <label>ID Veterinario</label>
+      <input type="number" id="vacVet" placeholder="Ej: 1">
+      <label>Costo cobrado</label>
+      <input type="number" id="vacCosto" placeholder="Ej: 350">
+      <button class="btn" onclick="aplicarVacuna()">Aplicar y limpiar caché</button>
+      <button class="btn secondary" onclick="document.getElementById('formVacunaCard').style.display='none'">Cancelar</button>
+      <div id="vacunaMsg" style="margin-top:8px"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:3001';
+let TOKEN = null, ROL = null, VET_ID = null;
+
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach((b, i) => {
+    b.classList.toggle('active', ['login','busqueda','vacunacion'][i] === name);
+  });
+  document.getElementById(`panel-${name}`).classList.add('active');
+}
+
+function msgEl(id, text, type='ok') {
+  document.getElementById(id).innerHTML = `<div class="msg msg-${type}">${text}</div>`;
+}
+
+function headers() {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` };
+}
+
+async function login() {
+  const val   = document.getElementById('rolSelect').value.split('|');
+  const role  = val[0];
+  const vetId = val[1] === 'null' ? null : parseInt(val[1]);
+  const r     = await fetch(`${API}/api/auth/demo-token`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ vet_id: vetId, role })
+  });
+  const data = await r.json();
+  if (!r.ok) return msgEl('loginMsg', data.error, 'err');
+  TOKEN = data.token; ROL = role; VET_ID = vetId;
+  const nombres = {
+    clinica_admin: '👑 Administrador',
+    clinica_vet: `🩺 Veterinario (vet_id=${vetId})`,
+    clinica_recepcionista: '📋 Recepcionista'
+  };
+  document.getElementById('roleBadge').textContent = nombres[role];
+  msgEl('loginMsg', `✅ Sesión iniciada como <strong>${nombres[role]}</strong>. Ahora prueba las otras pantallas.`, 'ok');
+}
+
+async function buscar() {
+  if (!TOKEN) return msgEl('searchResults', '⚠ Primero inicia sesión.', 'err');
+  const q = document.getElementById('searchInput').value;
+  const r = await fetch(`${API}/api/mascotas/buscar?q=${encodeURIComponent(q)}`, { headers: headers() });
+  renderMascotas(await r.json(), r.ok, `Búsqueda: "${q}"`);
+}
+
+async function cargarTodas() {
+  if (!TOKEN) return msgEl('searchResults', '⚠ Primero inicia sesión.', 'err');
+  const r    = await fetch(`${API}/api/mascotas`, { headers: headers() });
+  const data = await r.json();
+  renderMascotas({ data: data.data || data, total: (data.data||data)?.length }, r.ok, 'Todas las mascotas');
+}
+
+function renderMascotas(data, ok, titulo) {
+  const div  = document.getElementById('searchResults');
+  if (!ok) { div.innerHTML = `<div class="msg msg-err">${data.error}</div>`; return; }
+  const rows = data.data || [];
+  div.innerHTML = `<p style="font-size:0.8rem;color:#718096;margin-bottom:8px">
+    ${titulo} — <strong>${rows.length}</strong> resultado(s)
+    ${ROL==='clinica_vet' ? ' · <em>Filtrado por RLS</em>' : ''}</p>` +
+    (rows.length === 0 ? '<div class="msg msg-info">Sin resultados.</div>' :
+    `<table><thead><tr><th>ID</th><th>Nombre</th><th>Especie</th><th>Dueño</th><th>Teléfono</th></tr></thead>
+    <tbody>${rows.map(m=>`<tr><td>${m.id}</td><td><strong>${m.nombre}</strong></td>
+    <td>${m.especie}</td><td>${m.dueno||''}</td><td>${m.dueno_telefono||m.telefono||''}</td></tr>`).join('')}
+    </tbody></table>`);
+}
+
+async function cargarVacunacion() {
+  if (!TOKEN) { msgEl('vacunacionMsg','⚠ Primero inicia sesión.','err'); return; }
+  const t0 = performance.now();
+  const r  = await fetch(`${API}/api/mascotas/vacunacion-pendiente`, { headers: headers() });
+  const ms = Math.round(performance.now() - t0);
+  const data = await r.json();
+  if (!r.ok) { msgEl('vacunacionMsg', data.error, 'err'); return; }
+  const isHit = data.source === 'cache';
+  const badge = document.getElementById('cacheBadge');
+  badge.style.display = 'inline-block';
+  badge.textContent   = isHit ? '🔴 CACHE HIT' : '🟡 CACHE MISS';
+  badge.className     = `cache-badge ${isHit ? 'cache-hit' : 'cache-miss'}`;
+  msgEl('vacunacionMsg',
+    `<strong>${isHit ? '🔴 [CACHE HIT]' : '🟡 [CACHE MISS]'}</strong>
+     Fuente: <strong>${data.source}</strong> · Latencia: ~${ms}ms
+     ${isHit ? '· Datos desde Redis' : '· Datos desde PostgreSQL'}`, isHit ? 'ok' : 'info');
+  const rows = data.data || [];
+  document.getElementById('vacunacionResults').innerHTML = rows.length === 0
+    ? '<div class="msg msg-ok">Todas las mascotas están al día.</div>'
+    : `<table><thead><tr><th>Mascota</th><th>Especie</th><th>Dueño</th>
+       <th>Última Vacuna</th><th>Días</th><th>Prioridad</th></tr></thead>
+       <tbody>${rows.map(m=>`<tr>
+         <td><strong>${m.nombre}</strong></td><td>${m.especie}</td><td>${m.nombre_dueno}</td>
+         <td>${m.fecha_ultima_vacuna||'Nunca'}</td><td>${m.dias_desde_ultima_vacuna||'—'}</td>
+         <td><span class="pill ${m.prioridad==='NUNCA_VACUNADA'?'pill-err':'pill-warn'}">${m.prioridad}</span></td>
+       </tr>`).join('')}</tbody></table>`;
+}
+
+function mostrarFormVacuna() {
+  document.getElementById('formVacunaCard').style.display = 'block';
+}
+
+async function aplicarVacuna() {
+  if (!TOKEN) return;
+  const body = {
+    mascota_id:     parseInt(document.getElementById('vacMascota').value),
+    vacuna_id:      parseInt(document.getElementById('vacVacuna').value),
+    veterinario_id: parseInt(document.getElementById('vacVet').value),
+    costo_cobrado:  parseFloat(document.getElementById('vacCosto').value)||0
+  };
+  const r    = await fetch(`${API}/api/vacunas/aplicar`, {
+    method:'POST', headers: headers(), body: JSON.stringify(body)
+  });
+  const data = await r.json();
+  msgEl('vacunaMsg', r.ok
+    ? `✅ ${data.message} Caché invalidado. Consulta de nuevo para ver CACHE MISS.`
+    : `❌ ${data.error}`, r.ok ? 'ok' : 'err');
+  if (r.ok) {
+    document.getElementById('cacheBadge').style.display = 'none';
+    document.getElementById('vacunacionResults').innerHTML =
+      '<div class="msg msg-info">Caché invalidado. Haz clic en "Consultar" para ver el MISS.</div>';
+  }
+}
+</script>
+</body>
+</html>
